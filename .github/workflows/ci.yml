@@ -1,0 +1,26 @@
+name: Code Verification (CI)
+
+# Step 1: When should it run?
+on: [push, pull_request]
+
+# Step 2: Which runner do we use and what steps do we execute?
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Clones the repository code into the virtual machine
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      # Installs the GCC compiler on the cloud Linux runner
+      - name: Install GCC
+        run: sudo apt-get update && sudo apt-get install -y gcc
+
+      # Compiles the program exactly as you would locally
+      - name: Compile C program
+        run: gcc c-bye/bye.c -o c-bye/bye
+
+      # Runs the resulting binary to ensure it executes successfully
+      - name: Run application
+        run: ./c-bye/bye
