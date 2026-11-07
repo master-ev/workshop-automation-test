@@ -1,0 +1,67 @@
+name: python3-hello Pipeline (CI + CD)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'python3-hello/**'
+      - '.github/workflows/python-pipeline.yml'
+  pull_request:
+    paths:
+      - 'python3-hello/**'
+  workflow_dispatch:
+
+jobs:
+  # ---------- CI: make sure the script runs and the code is clean ----------
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Lint (same checks as the local hook)
+        run: |
+          pip install black flake8
+          black --check --diff python3-hello/
+          flake8 --max-line-length=88 python3-hello/
+
+      - name: Run hello.py (must not crash)
+        run: |
+          output=$(python python3-hello/hello.py)
+          echo "Output: $output"
+          [ "$output" = "Hello from Unikraft!" ]
+
+  # ---------- CD: build the image and push it to GHCR ----------
+  build-and-push:
+    needs: test                     # Golden Rule: only runs if `test` passed
+    if: github.event_name != 'pull_request'   # never publish from a PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}/python3-hello
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      - name: Authenticate with GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./python3-hello
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}

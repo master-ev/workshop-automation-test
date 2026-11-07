@@ -1,0 +1,15 @@
+# Challenge 3 (local step): lint/format python3-hello before every commit
+repos:
+  - repo: https://github.com/psf/black
+    rev: 26.10.1
+    hooks:
+      - id: black
+        files: ^python3-hello/
+        args: [--check, --diff]   # block badly formatted code instead of silently fixing it
+
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.3.0
+    hooks:
+      - id: flake8
+        files: ^python3-hello/
+        args: [--max-line-length=88]   # same line length as black

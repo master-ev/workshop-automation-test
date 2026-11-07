@@ -3,24 +3,44 @@ name: Code Verification (CI)
 # Step 1: When should it run?
 on: [push, pull_request]
 
-# Step 2: Which runner do we use and what steps do we execute?
+# Step 2: Which runners do we use and what steps do we execute?
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # The matrix spins up one VM per OS, all in parallel
+    strategy:
+      fail-fast: false   # let every OS finish, so we see all failures at once
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+    name: build (${{ matrix.os }})
+
+    # Use bash everywhere (Git Bash on Windows) so the same commands work on all 3
+    defaults:
+      run:
+        shell: bash
 
     steps:
       # Clones the repository code into the virtual machine
       - name: Checkout repository code
         uses: actions/checkout@v4
 
-      # Installs the GCC compiler on the cloud Linux runner
-      - name: Install GCC
-        run: sudo apt-get update && sudo apt-get install -y gcc
+      # gcc is preinstalled on all three runners:
+      #   Linux: GNU gcc, macOS: gcc -> Apple clang, Windows: MinGW-w64 gcc
+      - name: Show compiler version
+        run: gcc --version
 
       # Compiles the program exactly as you would locally
       - name: Compile C program
         run: gcc c-bye/bye.c -o c-bye/bye
 
-      # Runs the resulting binary to ensure it executes successfully
+      # Runs the binary with a wrong and a correct password and checks the output
       - name: Run application
-        run: ./c-bye/bye
+        run: |
+          out=$(echo "wrong" | ./c-bye/bye)
+          echo "$out"
+          echo "$out" | grep -q "Access denied!"
+
+          out=$(echo "n0t_saf3_4nyw4y" | ./c-bye/bye)
+          echo "$out"
+          echo "$out" | grep -q "Access granted!"
